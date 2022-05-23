@@ -36,12 +36,15 @@ class DetectDuplicatedFilesCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        DuplicatedFilesDetector::setVerbose( $input->getOption('verbose'));
+
         $io = new SymfonyStyle($input, $output);
+
         $directoryPath = self::PUBLIC_FOLDER . DIRECTORY_SEPARATOR . $input->getArgument('directoryPath');
 
         if ($directoryPath) {
             $table = new Table($output);
-            $table->setHeaders(['File 1', 'File 2']);
+            $table->setHeaders(['#', 'File 1', '#', 'File 2']);
 
             foreach ($this->duplicatedFilesDetector->getAllDuplicatedFiles($directoryPath) as $duplicatedFiles) {
                 $table->addRow($duplicatedFiles);
