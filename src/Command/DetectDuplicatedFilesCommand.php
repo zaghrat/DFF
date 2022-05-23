@@ -9,6 +9,7 @@ use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -25,18 +26,20 @@ class DetectDuplicatedFilesCommand extends Command
     {
         $this
             ->addArgument('directoryPath', InputArgument::REQUIRED, 'Path of directory to scan')
+            ->addOption('delete', 'd', InputOption::VALUE_NONE, 'Delete duplicate files')
         ;
     }
 
     public function __construct(DuplicatedFilesDetector $duplicatedFilesDetector )
     {
         $this->duplicatedFilesDetector = $duplicatedFilesDetector;
-        parent::__construct(null);
+        parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         DuplicatedFilesDetector::setVerbose( $input->getOption('verbose'));
+        DuplicatedFilesDetector::setDeleteDuplicatedFiles( $input->getOption('delete'));;
 
         $io = new SymfonyStyle($input, $output);
 
@@ -44,16 +47,20 @@ class DetectDuplicatedFilesCommand extends Command
 
         if ($directoryPath) {
             $table = new Table($output);
-            $table->setHeaders(['#', 'File 1', '#', 'File 2']);
+            $table->setHeaders(['File 1', 'Duplication']);
 
             foreach ($this->duplicatedFilesDetector->getAllDuplicatedFiles($directoryPath) as $duplicatedFiles) {
-                $table->addRow($duplicatedFiles);
+                $listOfFiles = "";
+                foreach ($duplicatedFiles[1] as $duplicatedFile) {
+                    $listOfFiles .= sprintf("📁 %s \n", $duplicatedFile);
+                }
+                $table->addRow([$duplicatedFiles[0], $listOfFiles]);
+                $table->addRow(new TableSeparator());
             }
             $table->render();
-
         }
 
-        $io->success('You have a new command! Now make it your own! Pass --help to see your options.');
+        $io->success('');
 
         return Command::SUCCESS;
     }

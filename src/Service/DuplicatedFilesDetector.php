@@ -10,6 +10,8 @@ class DuplicatedFilesDetector
 {
     private static int $count = 0 ;
     private static bool $verbose = false ;
+    private static bool $deleteDuplicatedFiles = false ;
+    private array $listOfDuplicatedFiles = [];
     private Filesystem $filesystem;
 
     public function __construct(Filesystem $filesystem)
@@ -21,18 +23,10 @@ class DuplicatedFilesDetector
     {
         $finder = new Finder();
         if (!$excludedFile) {
-            $finder->files()->in($dir);
+            $finder->files()->in($dir)->sortByChangedTime();
         } else {
-            $finder->files()->in($dir)->notName($excludedFile);
+            $finder->files()->in($dir)->sortByChangedTime()->notName($excludedFile);
         }
-
-        return $finder;
-    }
-
-    private function getDirectories(string $dir): Finder
-    {
-        $finder = new Finder();
-        $finder->directories()->in($dir);
 
         return $finder;
     }
@@ -45,7 +39,7 @@ class DuplicatedFilesDetector
 
         /** @var SplFileInfo $file */
         foreach ($this->getFiles($dirPath) as $file) {
-            if (!$file->isFile()) {
+            if (!$file->isFile() || in_array($file->getPathname() , $this->listOfDuplicatedFiles, true)) {
                 continue;
             }
 
@@ -54,30 +48,32 @@ class DuplicatedFilesDetector
                 continue;
             }
 
-            sleep(2);
-            yield $duplicatedFiles;
-        }
+            if (self::$deleteDuplicatedFiles) {
+                foreach ($duplicatedFiles[1] as $duplicatedFilename) {
+                    if ($this->filesystem->exists($duplicatedFilename)) {
+                        $this->filesystem->remove($duplicatedFilename);
+                    }
+                }
+            }
 
-        foreach ($this->getDirectories($dirPath) as $directory) {
-            $this->getAllDuplicatedFiles($directory->getPathname());
+            yield $duplicatedFiles;
         }
     }
 
     private function checkDuplication(string $dir, SplFileInfo $initialFile): array
     {
+        $duplicatedFiles = [];
         /** @var SplFileInfo $file */
         foreach ($this->getFiles($dir, $initialFile->getFilename()) as $file) {
             if ($this->compareFiles($initialFile, $file)) {
-                return [
-                    ++self::$count,
-                    $initialFile->getFilename(),
-                    self::$count,
-                    $file->getFilename()
-                ];
+                $duplicatedFiles[0] = $initialFile->getPathname();
+                $duplicatedFiles[1][] = $file->getPathname();
+                $this->listOfDuplicatedFiles[] = $file->getPathname();
+                $this->listOfDuplicatedFiles[] =  $initialFile->getPathname();
             }
         }
 
-        return [];
+        return $duplicatedFiles;
     }
 
     /**
@@ -86,6 +82,14 @@ class DuplicatedFilesDetector
     public static function setVerbose(bool $verbose): void
     {
         self::$verbose = $verbose;
+    }
+
+    /**
+     * @param bool $deleteDuplicatedFiles
+     */
+    public static function setDeleteDuplicatedFiles(bool $deleteDuplicatedFiles): void
+    {
+        self::$deleteDuplicatedFiles = $deleteDuplicatedFiles;
     }
 
     private function compareFiles(SplFileInfo $firstFile, SplFileInfo $secondFile): bool
@@ -116,5 +120,4 @@ class DuplicatedFilesDetector
 
         return true;
     }
-
 }
