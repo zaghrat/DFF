@@ -66,8 +66,8 @@ class DuplicatedFilesDetector
         /** @var SplFileInfo $file */
         foreach ($this->getFiles($dir, $initialFile->getFilename()) as $file) {
             if ($this->compareFiles($initialFile, $file)) {
-                $duplicatedFiles[0] = $initialFile->getPathname();
-                $duplicatedFiles[1][] = $file->getPathname();
+                $duplicatedFiles[0] = $initialFile->getPathname(); // original file
+                $duplicatedFiles[1][] = $file->getPathname(); // copy
                 $this->listOfDuplicatedFiles[] = $file->getPathname();
                 $this->listOfDuplicatedFiles[] =  $initialFile->getPathname();
             }
